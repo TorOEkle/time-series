@@ -20,7 +20,7 @@ Access the web console at `http://localhost:9000` for QuestDB and `http://localh
 To fill QuestDB with sample data check out [tutorial](./tutorial.md).
 
 ## Integrating QuestDB with Grafana
-First go to *Data Soruces* and install QuestDB plugin. Then go to *Add new connection*, choose QuestDB and fill in the following
+First go to *Add new connection* and install QuestDB plugin. Then go to *Data sources*, choose QuestDB and fill in the following
 - Server address: questdb
 - Server port: 8812
 - Username: admin
