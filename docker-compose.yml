@@ -1,0 +1,42 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  questdb:
+    image: questdb/questdb:latest
+    container_name: questdb
+    ports:
+      - "9000:9000"
+      - "8812:8812"
+      - "9009:9009"
+    environment:
+      - QDB_PG_USER=admin
+      - QDB_PG_PASSWORD=admin
+      - QDB_PG_READONLY_USER_ENABLED=true
+    volumes:
+      - questdb_data:/var/lib/questdb
+    networks:
+      - questdb-network
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - questdb-network
+    depends_on:
+      - questdb
+
+networks:
+  questdb-network:
+    driver: bridge
+
+volumes:
+  questdb_data:
+  grafana_data:
