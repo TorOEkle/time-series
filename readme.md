@@ -8,8 +8,7 @@ After setting up I want to do some time-series econometrics and machine learning
 
 ## Setup
 
-
-<https://questdb.io/docs/third-party-tools/grafana/>
+[]<https://questdb.io/docs/third-party-tools/grafana/>
 
 To start up both network, QuestDB and Grafana, run the following command:
 ```bash
@@ -27,3 +26,5 @@ First go to *Data Soruces* and install QuestDB plugin. Then go to *Add new conne
 - Username: admin
 - Password: admin
 - TLS/SSL Mode: disable
+
+![Screenshot of settings](settings.png)
