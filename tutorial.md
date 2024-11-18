@@ -6,24 +6,38 @@
 
 ```sql
 CREATE TABLE sensors (
-    ts TIMESTAMP,
-    sensor_id SYMBOL,
+    timestamp TIMESTAMP,
+    sensor_id INT,
     temperature DOUBLE,
     humidity DOUBLE
-) timestamp(ts);
+) timestamp(timestamp);
 ```
 
 ### Insert Sample Data
-
+Change timestamp to be hours and not seconds. 
 ```sql
-INSERT INTO sensors 
-VALUES 
-    ('2023-01-01T00:00:00', 'sensor1', 22.5, 45.0),
-    ('2023-01-01T00:00:00', 'sensor2', 21.5, 44.0),
-    ('2023-01-01T00:01:00', 'sensor1', 22.7, 45.2),
-    ('2023-01-01T00:01:00', 'sensor2', 21.7, 44.2),
-    ('2023-01-01T00:02:00', 'sensor1', 23.0, 45.5),
-    ('2023-01-01T00:02:00', 'sensor2', 21.9, 44.5);
+INSERT INTO sensors (timestamp, sensor_id, temperature, humidity)
+SELECT 
+    timestamp_sequence(
+        to_timestamp('2019-10-17T00:00:00', 'yyyy-MM-ddTHH:mm:ss') + (sensor_id - 1) * 3600000000L, 
+        3600000000L
+    ) AS timestamp,  
+    sensor_id,
+    rnd_double() * 30 + 10 AS temperature, 
+    rnd_double() * 100 AS humidity 
+FROM (
+    SELECT 1 AS sensor_id
+    UNION ALL SELECT 2
+    UNION ALL SELECT 3
+    UNION ALL SELECT 4
+    UNION ALL SELECT 5
+    UNION ALL SELECT 6
+    UNION ALL SELECT 7
+    UNION ALL SELECT 8
+    UNION ALL SELECT 9
+    UNION ALL SELECT 10
+) AS sensor_ids
+CROSS JOIN long_sequence(100) AS series;
 ```
 
 ## Example Time Series Queries
@@ -31,7 +45,7 @@ VALUES
 ### Basic Time-Based Query
 ```sql
 SELECT * FROM sensors 
-WHERE ts >= '2023-01-01' AND ts < '2023-01-02'
+WHERE timestamp >= '2023-01-01' AND ts < '2023-01-02'
 ORDER BY ts;
 ```
 
@@ -50,11 +64,16 @@ SAMPLE BY 1m;
 ### Moving Average
 ```sql
 SELECT 
-    ts,
-    sensor_id,
+    timestamp, 
     temperature,
-    avg(temperature) OVER (PARTITION BY sensor_id ORDER BY ts ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) as moving_avg
-FROM sensors;
+    avg(temperature) OVER (
+        PARTITION BY sensor_id
+        ORDER BY timestamp
+        RANGE BETWEEN '24' HOUR PRECEDING AND CURRENT ROW
+    ) AS avg_temp_last_24_observations
+FROM sensors
+WHERE sensor_id = 1
+ORDER BY timestamp;
 ```
 
 ### Latest Reading per Sensor
@@ -67,7 +86,7 @@ LATEST BY sensor_id;
 - [QuestDB Documentation](https://questdb.io/docs/)
 - [SQL Reference](https://questdb.io/docs/reference/sql/overview/)
 - [Time Series Functions](https://questdb.io/docs/reference/function/time-series/)
-- For more information, refer to the [Grafana Documentation](https://grafana.com/docs/).
+- [Grafana Documentation](https://grafana.com/docs/).
 
 
 
