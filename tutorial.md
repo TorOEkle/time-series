@@ -14,7 +14,7 @@ CREATE TABLE sensors (
 ```
 
 ### Insert Sample Data
-Change timestamp to be hours and not seconds. 
+Simulate data, all sensors is in parallel, each sensor generates 100 readings.
 ```sql
 INSERT INTO sensors (timestamp, sensor_id, temperature, humidity)
 SELECT 
@@ -23,8 +23,8 @@ SELECT
         3600000000L
     ) AS timestamp,  
     sensor_id,
-    rnd_double() * 30 + 10 AS temperature, 
-    rnd_double() * 100 AS humidity 
+    round(rnd_double() * 30 + 10,2) AS temperature, 
+    round(rnd_double() * 100,2) AS humidity 
 FROM (
     SELECT 1 AS sensor_id
     UNION ALL SELECT 2
