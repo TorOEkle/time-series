@@ -2,8 +2,86 @@
 version: '3.8'
 
 services:
+  # ── Kafka (KRaft mode — no Zookeeper needed) ───────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    ports:
+      - "9092:9092"     # external access (producer.py connects here)
+      - "9101:9101"     # JMX (optional metrics)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # Dual listener: EXTERNAL for host, INTERNAL for other containers
+      KAFKA_LISTENERS: EXTERNAL://0.0.0.0:9092,INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 24
+      CLUSTER_ID: "Mk3OEYBSD38oCGkInMqwIg"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - questdb-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ── Kafka Connect ──────────────────────────────────────────────────────────
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.6.1
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"     # REST API → http://localhost:8083
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:29092
+      CONNECT_REST_PORT: 8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_GROUP_ID: connect-cluster
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing QuestDB Kafka connector..."
+        confluent-hub install --no-prompt questdb/kafka-questdb-connector:0.9
+        echo "Starting Kafka Connect..."
+        /etc/confluent/docker/run
+    volumes:
+      - connect_plugins:/usr/share/confluent-hub-components
+    networks:
+      - questdb-network
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ── QuestDB ────────────────────────────────────────────────────────────────
   questdb:
-    image: questdb/questdb:latest
+    image: questdb/questdb:8.1.0
     container_name: questdb
     ports:
       - "9000:9000"
@@ -13,25 +91,35 @@ services:
       - QDB_PG_USER=admin
       - QDB_PG_PASSWORD=admin
       - QDB_PG_READONLY_USER_ENABLED=true
+      - QDB_TELEMETRY_ENABLED=false
     volumes:
       - questdb_data:/var/lib/questdb
     networks:
       - questdb-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
+  # ── Grafana ────────────────────────────────────────────────────────────────
   grafana:
-    image: grafana/grafana-oss:latest
+    image: grafana/grafana:11.0.0
     container_name: grafana
     ports:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
       - questdb-network
     depends_on:
-      - questdb
+      questdb:
+        condition: service_healthy
 
 networks:
   questdb-network:
@@ -40,3 +128,5 @@ networks:
 volumes:
   questdb_data:
   grafana_data:
+  kafka_data:
+  connect_plugins:

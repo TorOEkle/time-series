@@ -1,0 +1,25 @@
+{
+  "name": "questdb-sink-sensors",
+  "config": {
+    "connector.class": "io.questdb.kafka.QuestDBSinkConnector",
+    "tasks.max": "1",
+
+    "topics": "sensors",
+
+    "host": "questdb:9009",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+
+    "name": "questdb-sink-sensors",
+
+    "timestamp.field.name": "timestamp",
+
+    "include.key": "false",
+
+    "symbols": "sensor_id,location",
+
+    "doubles": "temperature,humidity,pressure"
+  }
+}
